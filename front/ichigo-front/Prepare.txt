@@ -1,0 +1,3 @@
+npx create-react-app ichigo-front
+npm install react-router-dom --save
+npm i styled-components

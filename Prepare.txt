@@ -1,0 +1,82 @@
+docker pull mysql
+docker run --name ichigo-test -p 127.0.0.1:3306:3306 -e MYSQL_ROOT_PASSWORD=ichigo -e MYSQL_DATABASE=ichigo_db -e MYSQL_USER=ichigo -e MYSQL_PASSWORD=ichigo -d mysql
+
+customer table
+CREATE TABLE customer(
+    customer_id VARCHAR(5) NOT NULL PRIMARY KEY,
+    customer_name VARCHAR(20) NOT NULL,
+    tier VARCHAR(6) NOT NULL DEFAULT 'Bronze' COMMENT 'Bronze Silver Gold',
+    create_time DATETIME DEFAULT NOW(),
+    update_time DATETIME DEFAULT NOW()
+) DEFAULT CHARSET UTF8
+
+order table
+CREATE TABLE order_tbl ( 
+    order_id VARCHAR(5) NOT NULL,
+    customer_id VARCHAR(5) NOT NULL,
+    total_in_cents INT DEFAULT 0 COMMENT 'assume the currency is only JPY',
+    order_date DATETIME COMMENT 'order puchase date',
+    PRIMARY KEY (customer_id, order_id),
+    FOREIGN KEY (customer_id)
+        REFERENCES customer(customer_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+) DEFAULT CHARSET UTF8;
+
+
+update tiers bach
+WITH new_tiers AS (
+    SELECT customer_id, 
+    CASE
+        WHEN SUM(total_in_cents) < 100 THEN 'Bronze'
+        WHEN SUM(total_in_cents) >= 100 AND SUM(total_in_cents) < 500 THEN 'Silver'
+        WHEN SUM(total_in_cents) > 500 THEN 'Gold'
+    END tier
+    FROM order_tbl WHERE YEAR(order_date) >= YEAR(CURDATE() + INTERVAL -1 YEAR) GROUP BY customer_id
+)
+UPDATE customer c, new_tiers n SET c.tier = n.tier, c.update_time = NOW() WHERE c.customer_id = n.customer_id;
+
+returns information about a customer
+info1
+SELECT c.tier
+    , CONCAT(CAST(YEAR(CURDATE() + INTERVAL -1 YEAR) AS CHAR), '/01/01') start_date
+    , SUM(o.total_in_cents) amount_from_start_date
+    , CASE
+        WHEN SUM(o.total_in_cents) < 100 THEN 100 - SUM(o.total_in_cents)
+        WHEN SUM(o.total_in_cents) >= 100 AND SUM(o.total_in_cents) < 500 THEN 500 - SUM(o.total_in_cents)
+        ELSE 0
+      END amount_to_next_tier  
+FROM 
+    customer c JOIN order_tbl o ON c.customer_id = o.customer_id 
+WHERE 
+    YEAR(o.order_date) >= YEAR(CURDATE() + INTERVAL -1 YEAR)
+    AND c.customer_id = ?1
+GROUP BY
+    o.customer_id;
+
+info2
+SELECT 
+    CASE
+        WHEN c.tier = 'Silver' AND SUM(o.total_in_cents) < 100 THEN 'Bronze'
+        WHEN c.tier = 'Gold' and SUM(o.total_in_cents) < 100 THEN 'Bronze'
+        WHEN c.tier = 'Gold' and SUM(o.total_in_cents) >= 100 AND SUM(o.total_in_cents) < 500 THEN 'Silver'
+        ELSE NULL
+    END down_tier
+    , CONCAT(CAST(YEAR(CURDATE() + INTERVAL +1 YEAR) AS CHAR), '/01/01') down_grade_date
+    , CASE        
+        WHEN c.tier = 'Silver' AND SUM(o.total_in_cents) < 100 THEN 100 - SUM(o.total_in_cents)
+        WHEN c.tier = 'Gold' AND SUM(o.total_in_cents) < 500 THEN 500 - SUM(o.total_in_cents)
+        ELSE 0
+      END amount_to_keep_tier  
+FROM 
+    customer c JOIN order_tbl o ON c.customer_id = o.customer_id 
+WHERE 
+    YEAR(o.order_date) >= YEAR(CURDATE())
+    AND c.customer_id = ?1
+GROUP BY
+    o.customer_id
+
+
+
+Cron command for batch
+0 0 1 1 * /home/refresh_tier/update_tier

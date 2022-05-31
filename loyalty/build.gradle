@@ -1,0 +1,60 @@
+plugins {
+	id 'org.springframework.boot' version '2.7.0'
+	id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+	id 'java'
+	id "org.openapi.generator" version "5.4.0"
+	id 'idea'
+}
+
+group = 'com.ichigo.loyalty'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '11'
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenCentral()
+	maven { url 'https://repo.spring.io/milestone' }
+	maven { url 'https://repo.spring.io/snapshot' }
+}
+
+openApiGenerate {
+	generatorName = "spring"
+	inputSpec = "$rootDir/src/main/resources/wenwu.zhang-Ichigo-1.0.0-resolved.yaml".toString()
+	outputDir = "$buildDir/generated".toString()
+	apiPackage = "com.ichigo.loyalty.api"
+	modelPackage = "com.ichigo.loyalty.model"
+	configOptions = [
+			dateLibrary: "java11",
+			skipDefaultInterface: "true",
+			interfaceOnly: "true"
+	]
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	compileOnly 'org.projectlombok:lombok'
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+	runtimeOnly 'mysql:mysql-connector-java'
+	annotationProcessor 'org.projectlombok:lombok'
+	implementation group: 'io.swagger.core.v3', name: 'swagger-annotations', version: '2.2.0'
+	implementation group: 'javax.validation', name: 'validation-api', version: '2.0.1.Final'
+	testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: '5.9.0-M1'
+	implementation group: 'org.openapitools', name: 'jackson-databind-nullable', version: '0.2.2'
+	testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.7.0'
+
+}
+
+idea {
+	module {
+		sourceDirs += file("$buildDir/generated/src/main/java")
+		//generatedSourceDirs += file("$buildDir/generated/src/main/java")
+		sourceSets.main.java.srcDirs += file("$buildDir/generated/src/main/java")
+	}
+}
+//compileJava.dependsOn tasks.openApiGenerate

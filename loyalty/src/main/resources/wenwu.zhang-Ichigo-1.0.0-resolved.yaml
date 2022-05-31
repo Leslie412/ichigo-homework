@@ -1,0 +1,157 @@
+---
+openapi: 3.0.0
+info:
+  title: Simple tiers API
+  description: This is for Ichigo coding test
+  version: 1.0.0
+paths:
+  /tiers/{customerid}:
+    get:
+      tags:
+        - tier
+      summary: retrieve information about a customer
+      description: |
+        returns information about a customer when given their ID
+      operationId: getCustomerInfoByID
+      parameters:
+        - name: customerid
+          in: path
+          description: customer id which used to retrive customer information
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: search results matching criteria
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerInfo'
+        "400":
+          description: bad input parameter
+        "404":
+          description: customer not found
+  /orders:
+    get:
+      tags:
+        - orders
+      summary: retrieve orders
+      description: lists the customer's orders since the start of last year, including the order ID, date and order total
+      operationId: listOrders
+      parameters:
+        - name: customerid
+          in: query
+          description: customer id which used to retrive customer information
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: list of customer's orders since the start of last year, including the order ID, date and order total
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrderList_inner'
+    post:
+      tags:
+        - orders
+      summary: report a completed order
+      description: Adds a new order to the system
+      operationId: createNewOrder
+      requestBody:
+        description: Inventory item to add
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderItem'
+      responses:
+        "201":
+          description: item created
+        "400":
+          description: invalid input, object invalid
+        "409":
+          description: an existing item already exists
+components:
+  schemas:
+    CustomerInfo:
+      required:
+        - amount4next
+        - amountspent
+        - downdate
+        - downtier
+        - spendneeded
+        - startdate
+        - tier
+      type: object
+      properties:
+        tier:
+          type: string
+          description: Current tier
+          example: Gold
+        startdate:
+          type: string
+          description: Start date of the tier calculation (i.e. start of last year - note that this is the same for all customers)
+          format: date
+        amountspent:
+          type: integer
+          description: Amount spent since that start date
+          example: 1234
+        amount4next:
+          type: integer
+          description: Amount that must be spent in order to reach the next tier
+          example: 456
+        downtier:
+          type: string
+          description: |
+            The tier the customer will be downgraded to next year, if they don't spend any more (for example, a customer who spent $100 last year is currently Silver, but will be downgraded to Bronze from next year)
+            This should be null if the customer has spent enough this year to maintain their current tier next year
+          example: Silver
+        downdate:
+          type: string
+          description: The date of the downgrade (i.e. end of this year - note that this is the same for all customers)
+          format: date
+        spendneeded:
+          type: integer
+          description: How much the customer needs to spend this year in order to avoid being downgraded (or zero if they will maintain their current tier next year)
+          example: 111
+    OrderItem:
+      required:
+        - customerId
+        - customerName
+        - date
+        - orderId
+        - totalInCents
+      type: object
+      properties:
+        customerId:
+          type: string
+          example: "123"
+        customerName:
+          type: string
+          example: Taro Suzuki
+        orderId:
+          type: string
+          example: T123
+        totalInCents:
+          type: integer
+          example: 3450
+        date:
+          type: string
+          format: date-time
+          example: 2016-08-29T09:12:33.001Z
+    OrderList_inner:
+      type: object
+      properties:
+        orderid:
+          type: string
+          example: T123
+        orderdate:
+          type: string
+          format: date
+        ordertotal:
+          type: integer
+          example: 555
